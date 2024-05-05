@@ -10,11 +10,15 @@
 
 #include <Eigen/StdVector>
 #include <Eigen/Dense>
-#include "ros/ros.h"
+#include <ros/ros.h>
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <geometry_msgs/PoseStamped.h>
 
 #include "BA/mypcl.hpp"
 #include "pose_refine.hpp"
+
 
 using namespace std;
 using namespace Eigen;
@@ -56,7 +60,7 @@ void cut_voxel(unordered_map<VOXEL_LOC, OCTO_TREE*>& feature_map,
 			ot->voxel_center[1] = (0.5 + position.y) * voxel_size;
 			ot->voxel_center[2] = (0.5 + position.z) * voxel_size;
 			ot->quater_length = voxel_size / 4.0;
-      ot->layer = 0;
+            ot->layer = 0;
 			feature_map[position] = ot;
 		}
 	}
@@ -64,123 +68,153 @@ void cut_voxel(unordered_map<VOXEL_LOC, OCTO_TREE*>& feature_map,
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "pose_refine");
-  ros::NodeHandle nh("~");
+    ros::init(argc, argv, "pose_refine");
+    ros::NodeHandle nh("~");
 
-  ros::Publisher pub_surf = nh.advertise<sensor_msgs::PointCloud2>("/map_surf", 100);
-  ros::Publisher pub_surf_debug = nh.advertise<sensor_msgs::PointCloud2>("/debug_surf", 100);
+    ros::Publisher pub_surf = nh.advertise<sensor_msgs::PointCloud2>("/map_surf", 100);
+    ros::Publisher pub_surf_debug = nh.advertise<sensor_msgs::PointCloud2>("/debug_surf", 100);
 
-  string data_path;
-  int max_iter, base_lidar;
-  double downsmp_base;
-  bool load_original = true;
+    string data_path, rosbag;
+    string odom_topic, base_lidar_topic;
+    int max_iter, base_lidar;
+    double downsmp_base;
+    bool load_original = true;
 
-  nh.getParam("data_path", data_path);
-  nh.getParam("max_iter", max_iter);
-  nh.getParam("base_lidar", base_lidar);
-  nh.getParam("voxel_size", voxel_size);
-  nh.getParam("eigen_threshold", eigen_thr);
-  nh.getParam("downsample_base", downsmp_base);
-  nh.getParam("load_original", load_original);
+    nh.getParam("data_path", data_path);
+    nh.getParam("max_iter", max_iter);
+    nh.getParam("base_lidar", base_lidar);
+    nh.getParam("voxel_size", voxel_size);
+    nh.getParam("eigen_threshold", eigen_thr);
+    nh.getParam("downsample_base", downsmp_base);
+    nh.getParam("load_original", load_original);
+    nh.getParam("rosbag", rosbag);
+    nh.getParam("odom_topic", odom_topic);
+    nh.getParam("base_lidar_topic", base_lidar_topic);
 
-  sensor_msgs::PointCloud2 debugMsg, colorCloudMsg;
-  vector<mypcl::pose> pose_vec;
-  if(load_original)
-    pose_vec = mypcl::read_pose(data_path + "original_pose/" + to_string(base_lidar) + ".json");
-  else
-    pose_vec = mypcl::read_pose(data_path + "pose.json");
-  size_t pose_size = pose_vec.size();
-  ros::Time t_begin, t_end, cur_t;
-  double avg_time = 0.0;
+    vector<mypcl::pose> pose_vec;
+    size_t pose_size;
+    vector<pcl::PointCloud<PointType>::Ptr> base_pc;
 
-  pcl::PointCloud<PointType>::Ptr pc_debug(new pcl::PointCloud<PointType>);
-  pcl::PointCloud<PointType>::Ptr pc_surf(new pcl::PointCloud<PointType>);
-  pcl::PointCloud<PointType>::Ptr pc_full(new pcl::PointCloud<PointType>);
+    if(rosbag.empty()){
+        if(load_original)
+            pose_vec = mypcl::read_pose(data_path + "original_pose/" + to_string(base_lidar) + ".json");
+        else
+            pose_vec = mypcl::read_pose(data_path + "pose.json");
 
-  vector<pcl::PointCloud<PointType>::Ptr> base_pc, ref_pc;
-  base_pc.resize(pose_size);
+        pose_size = pose_vec.size();
+        base_pc.resize(pose_size);
 
-  for(size_t i = 0; i < pose_size; i++)
-  {
-    pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
-    pcl::io::loadPCDFile(data_path+to_string(base_lidar)+"/"+to_string(i)+".pcd", *pc);
-    base_pc[i] = pc;
-  }
+        for(size_t i = 0; i < pose_size; i++)
+        {
+            pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
+            pcl::io::loadPCDFile(data_path+to_string(base_lidar)+"/"+to_string(i)+".pcd", *pc);
+            base_pc[i] = pc;
+        }
+    }else{
+        // load from rosbag
+        rosbag::Bag bag(rosbag, rosbag::bagmode::Read);
+        vector<string> topics{odom_topic, base_lidar_topic};
+        rosbag::View view(bag, rosbag::TopicQuery(topics));
+        // iterate the bag
+        for(auto it = view.begin(); it != view.end(); it++){
+            auto m = *it;
+            if(m.getTopic() == odom_topic){
+                geometry_msgs::PoseStamped::ConstPtr pose = m.instantiate<geometry_msgs::PoseStamped>();
+                Eigen::Quaterniond q(pose->pose.orientation.w, pose->pose.orientation.x,
+                                    pose->pose.orientation.y, pose->pose.orientation.z);
+                Eigen::Vector3d t(pose->pose.position.x, pose->pose.position.y, pose->pose.position.z);
+                pose_vec.push_back(mypcl::pose(q, t));
+            }else if(m.getTopic() == base_lidar_topic){
+                sensor_msgs::PointCloud2::ConstPtr cloud = m.instantiate<sensor_msgs::PointCloud2>();
+                pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
+                pcl::fromROSMsg(*cloud, *pc);
+                base_pc.push_back(pc);
+            }
+        }
+        pose_size = pose_vec.size();
+    }
   
-  int loop = 0;
-  for(; loop < max_iter; loop++)
-  {
+    int loop = 0;
+    double avg_time = 0.0;
+    ros::Time t_begin, t_end, cur_t;
+    sensor_msgs::PointCloud2 debugMsg, colorCloudMsg;
+    pcl::PointCloud<PointType>::Ptr pc_debug(new pcl::PointCloud<PointType>);
+    pcl::PointCloud<PointType>::Ptr pc_surf(new pcl::PointCloud<PointType>);
+    pcl::PointCloud<PointType>::Ptr pc_full(new pcl::PointCloud<PointType>);
+    
+    for(; loop < max_iter; loop++)
+    {
+        cout << "---------------------" << endl;
+        cout << "iteration " << loop << endl;
+        t_begin = ros::Time::now();
+        int window_size = pose_size;
+        unordered_map<VOXEL_LOC, OCTO_TREE*> surf_map;
+        LM_OPTIMIZER lm_opt(window_size);
+        cur_t = ros::Time::now();
+
+        for(size_t i = 0; i < pose_size; i++)
+        {
+            if(downsmp_base > 0) downsample_voxel(*base_pc[i], downsmp_base);
+            cut_voxel(surf_map, base_pc[i], pose_vec[i].q, pose_vec[i].t, i, window_size, eigen_thr);
+        }
+
+        for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
+            iter->second->recut();
+
+        for(int i = 0; i < window_size; i++)
+            assign_qt(lm_opt.poses[i], lm_opt.ts[i], pose_vec[i].q, pose_vec[i].t);
+    
+        for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
+            iter->second->feed_pt(lm_opt);
+
+        lm_opt.optimize();
+
+        for(int i = 0; i < window_size; i++)
+            assign_qt(pose_vec[i].q, pose_vec[i].t, lm_opt.poses[i], lm_opt.ts[i]);
+
+        for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
+            delete iter->second;
+    
+        t_end = ros::Time::now();
+        cout << "time cost " << (t_end-t_begin).toSec() << endl;
+        avg_time += (t_end-t_begin).toSec();
+
+        Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), pose_vec[0].q.y(), pose_vec[0].q.z());
+        Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));
+        pc_full->clear();
+        for(size_t i = 0; i < pose_size; i++)
+        {
+            mypcl::transform_pointcloud(*base_pc[i], *pc_debug, q0.inverse()*(pose_vec[i].t-t0), q0.inverse()*pose_vec[i].q);
+            pc_full = mypcl::append_cloud(pc_full, *pc_debug);
+        }
+        pcl::toROSMsg(*pc_full, debugMsg);
+        debugMsg.header.frame_id = "camera_init";
+        debugMsg.header.stamp = cur_t;
+        pub_surf_debug.publish(debugMsg);
+    }
     cout << "---------------------" << endl;
-    cout << "iteration " << loop << endl;
-    t_begin = ros::Time::now();
-    int window_size = pose_size;
-    unordered_map<VOXEL_LOC, OCTO_TREE*> surf_map;
-    LM_OPTIMIZER lm_opt(window_size);
-    cur_t = ros::Time::now();
-
-    for(size_t i = 0; i < pose_size; i++)
-    {
-      if(downsmp_base > 0) downsample_voxel(*base_pc[i], downsmp_base);
-      cut_voxel(surf_map, base_pc[i], pose_vec[i].q, pose_vec[i].t, i, window_size, eigen_thr);
-    }
-
-    for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
-      iter->second->recut();
-
-    for(int i = 0; i < window_size; i++)
-      assign_qt(lm_opt.poses[i], lm_opt.ts[i], pose_vec[i].q, pose_vec[i].t);
+    cout << "complete" << endl;
+    cout << "averaged iteration time " << avg_time / (loop+1) << endl;
+    mypcl::write_pose(pose_vec, data_path);
     
-    for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
-      iter->second->feed_pt(lm_opt);
-
-    lm_opt.optimize();
-
-    for(int i = 0; i < window_size; i++)
-      assign_qt(pose_vec[i].q, pose_vec[i].t, lm_opt.poses[i], lm_opt.ts[i]);
-
-    for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
-      delete iter->second;
-    
-    t_end = ros::Time::now();
-    cout << "time cost " << (t_end-t_begin).toSec() << endl;
-    avg_time += (t_end-t_begin).toSec();
-
-    Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), pose_vec[0].q.y(), pose_vec[0].q.z());
+    Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(),
+                            pose_vec[0].q.y(), pose_vec[0].q.z());
     Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));
-    pc_full->clear();
     for(size_t i = 0; i < pose_size; i++)
     {
-      mypcl::transform_pointcloud(*base_pc[i], *pc_debug, q0.inverse()*(pose_vec[i].t-t0), q0.inverse()*pose_vec[i].q);
-      pc_full = mypcl::append_cloud(pc_full, *pc_debug);
+        pcl::io::loadPCDFile(data_path+to_string(base_lidar)+"/"+to_string(i)+".pcd", *pc_surf);
+        mypcl::transform_pointcloud(*pc_surf, *pc_surf, q0.inverse()*(pose_vec[i].t-t0), q0.inverse()*pose_vec[i].q);
+
+        pcl::toROSMsg(*pc_surf, colorCloudMsg);
+        colorCloudMsg.header.frame_id = "camera_init";
+        colorCloudMsg.header.stamp = cur_t;
+        pub_surf.publish(colorCloudMsg);
     }
-    pcl::toROSMsg(*pc_full, debugMsg);
-    debugMsg.header.frame_id = "camera_init";
-    debugMsg.header.stamp = cur_t;
-    pub_surf_debug.publish(debugMsg);
-  }
-  cout << "---------------------" << endl;
-  cout << "complete" << endl;
-  cout << "averaged iteration time " << avg_time / (loop+1) << endl;
-  mypcl::write_pose(pose_vec, data_path);
-  
-  Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(),
-                        pose_vec[0].q.y(), pose_vec[0].q.z());
-  Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));
-  for(size_t i = 0; i < pose_size; i++)
-  {
-    pcl::io::loadPCDFile(data_path+to_string(base_lidar)+"/"+to_string(i)+".pcd", *pc_surf);
-    mypcl::transform_pointcloud(*pc_surf, *pc_surf, q0.inverse()*(pose_vec[i].t-t0), q0.inverse()*pose_vec[i].q);
 
-    pcl::toROSMsg(*pc_surf, colorCloudMsg);
-    colorCloudMsg.header.frame_id = "camera_init";
-    colorCloudMsg.header.stamp = cur_t;
-    pub_surf.publish(colorCloudMsg);
-  }
-
-  ros::Rate loop_rate(1);
-  while(ros::ok())
-  {
-    ros::spinOnce();
-    loop_rate.sleep();
-  }
+    ros::Rate loop_rate(1);
+    while(ros::ok())
+    {
+        ros::spinOnce();
+        loop_rate.sleep();
+    }
 }

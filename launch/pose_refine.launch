@@ -3,6 +3,10 @@
     <!-- test scene -->
     <param name="data_path" type="string" value="$(find mlcc)/scene2/"/>
 
+    <param name="rosbag" type="string" value=""/>
+    <param name="base_lidar_topic" type="string" value="/avia/points"/>
+    <param name="odom_topic" type="string" value="/avia/odom"/>
+
     <!-- optimization iteration number -->
     <param name="max_iter" type="int" value="10"/>
 
