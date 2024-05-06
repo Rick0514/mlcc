@@ -7,6 +7,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  rosbag
   rospy
   std_msgs
 )
@@ -36,15 +37,15 @@ catkin_package(
 add_executable(pose_refine source/pose_refine.cpp)
 target_link_libraries(pose_refine ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
-add_executable(extrinsic_refine source/extrinsic_refine.cpp)
-target_link_libraries(extrinsic_refine ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+# add_executable(extrinsic_refine source/extrinsic_refine.cpp)
+# target_link_libraries(extrinsic_refine ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
-add_executable(global source/global.cpp)
-target_link_libraries(global ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+# add_executable(global source/global.cpp)
+# target_link_libraries(global ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
-add_executable(calib_camera source/camera_calib.cpp)
-target_link_libraries(calib_camera ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS})
+# add_executable(calib_camera source/camera_calib.cpp)
+# target_link_libraries(calib_camera ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS})
 
 # Calibrate Using Single Scene
-add_executable(calib_single_camera source/calib_single_camera.cpp)
-target_link_libraries(calib_single_camera ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS})
+# add_executable(calib_single_camera source/calib_single_camera.cpp)
+# target_link_libraries(calib_single_camera ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES} ${OpenCV_LIBS})
