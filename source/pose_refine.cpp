@@ -71,8 +71,8 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "pose_refine");
     ros::NodeHandle nh("~");
 
-    ros::Publisher pub_surf = nh.advertise<sensor_msgs::PointCloud2>("/map_surf", 100, true);
-    ros::Publisher pub_surf_debug = nh.advertise<sensor_msgs::PointCloud2>("/debug_surf", 100);
+    ros::Publisher pub_surf = nh.advertise<sensor_msgs::PointCloud2>("/map_surf", 10, true);
+    ros::Publisher pub_surf_debug = nh.advertise<sensor_msgs::PointCloud2>("/debug_surf", 10, true);
 
     string data_path, bag_name;
     string odom_topic, base_lidar_topic;

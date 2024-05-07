@@ -37,8 +37,8 @@ catkin_package(
 add_executable(pose_refine source/pose_refine.cpp)
 target_link_libraries(pose_refine ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
-# add_executable(extrinsic_refine source/extrinsic_refine.cpp)
-# target_link_libraries(extrinsic_refine ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+add_executable(extrinsic_refine source/extrinsic_refine.cpp)
+target_link_libraries(extrinsic_refine ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 # add_executable(global source/global.cpp)
 # target_link_libraries(global ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
