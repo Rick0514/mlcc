@@ -36,15 +36,6 @@ roslaunch mlcc global_refine.launch
 roslaunch mlcc calib_camera.launch
 ```
 
-### 3.3 Single LiDAR-Camera Calibration
-We have added code for single LiDAR-camera extrinsic calibration using adaptive voxelization, which supports both `pinhole` and `fisheye` camera models. The `FISHEYE` macro is defined in `calib_single_camera.hpp`. You can try our provided fisheye camera [data](https://drive.google.com/drive/folders/1fpk-eDX5nCi7UkkYKialHD-fgGdUGelk?usp=sharing).
-```
-roslaunch mlcc calib_single_camera.launch
-```
-
-![](figure/fisheye_cloud.jpg)
-Fig. 4 Extrinsic calibration of the fisheye camera and LiDAR in a single scene using adaptive voxelization. Left: distorted image. Right: colorized point cloud.
-
 ## 4. Run Your Own Data
 To test on your own data, you need to save the LiDAR point cloud in `.pcd` format. Please only collect the point cloud and images when the LiDAR (sensor platform) is not moving for optimal precision (or segment them from a complete rosbag). The base LiDAR poses and initial extrinsic values shall also be provided (in `tx ty tz qw qx qy qz` format). These initial values could be obtained by general SLAM and hand-eye calibration algorithms.
 
