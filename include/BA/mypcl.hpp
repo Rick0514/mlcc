@@ -103,7 +103,7 @@ namespace mypcl
   void write_pose(std::vector<pose> pose_vec, std::string path)
   {
     std::ofstream file;
-    file.open(path + "pose.json", std::ofstream::trunc);
+    file.open(path + "pose_optim.json", std::ofstream::trunc);
     Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), 
                           pose_vec[0].q.y(), pose_vec[0].q.z());
     Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));
@@ -126,7 +126,7 @@ namespace mypcl
   void write_ref(std::vector<pose> ref_vec, std::string path)
   {
     std::ofstream file;
-    file.open(path + "ref.json", std::ofstream::trunc);
+    file.open(path + "ref_optim.json", std::ofstream::trunc);
     for(size_t i = 0; i < ref_vec.size(); i++)
     {
       Eigen::Quaterniond q = ref_vec[i].q;
@@ -144,7 +144,7 @@ namespace mypcl
   void write_pose(std::vector<pose> pose_vec, std::vector<pose> ref_vec, std::string path)
   {
     std::ofstream file;
-    file.open(path + "pose.json", std::ofstream::trunc);
+    file.open(path + "pose_optim.json", std::ofstream::trunc);
     Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), 
                           pose_vec[0].q.y(), pose_vec[0].q.z());
     Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));
@@ -163,7 +163,7 @@ namespace mypcl
     }
     file.close();
 
-    file.open(path + "ref.json", std::ofstream::trunc);
+    file.open(path + "ref_optim.json", std::ofstream::trunc);
     for(size_t i = 0; i < ref_vec.size(); i++)
     {
       Eigen::Quaterniond q = ref_vec[i].q;
