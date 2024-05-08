@@ -41,10 +41,7 @@ To test on your own data, you need to save the LiDAR point cloud in `.pcd` forma
 
 You may need to modify the parameters `voxel_size` (adaptive voxel size), `feat_eigen_limit` (feature eigen ratio), and `downsmp_sz_base` (downsampling size) for LiDAR-LiDAR extrinsic calibration to adjust the precision and speed. You need to change the corresponding path and topic name in the yaml files in the `config` folder.
 
-## 5. Known Issues
-Currently, we separate the LiDAR extrinsic calibration process into three steps for debug reasons. In future release, we wish to combine them together to make them more convenient to use.
-
-## 6. License
+## 5. License
 The source code is released under [GPLv2](http://www.gnu.org/licenses/) license.
 
 We are still working on improving the performance and reliability of our codes. For any technical issues, please contact us via email <xliuaa@connect.hku.hk> and <xy19980205@outlook.com>.
