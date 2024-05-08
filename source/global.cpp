@@ -1,4 +1,7 @@
 #include "ros/ros.h"
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
+#include <nav_msgs/Odometry.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <unordered_map>
@@ -77,7 +80,8 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "global_refine");
     ros::NodeHandle nh("~");
 
-    string data_path;
+    string data_path, bag_name;
+    string odom_topic, base_lidar_topic;
     int max_iter, base_lidar;
     double downsmp_base, downsmp_ref, pub_hz;
     
@@ -88,11 +92,14 @@ int main(int argc, char** argv)
     nh.getParam("eigen_threshold", eigen_thr);
     nh.getParam("downsample_base", downsmp_base);
     nh.getParam("downsample_ref", downsmp_ref);
+    nh.getParam("bag_name", bag_name);
+    nh.getParam("odom_topic", odom_topic);
+    nh.getParam("base_lidar_topic", base_lidar_topic);
     nh.getParam("pub_hz", pub_hz);
 
     vector<mypcl::pose> pose_vec = mypcl::read_pose(data_path + "pose.json");
     IC(pose_vec.size());
-    vector<int> ref_lidar;
+    vector<string> ref_lidar;
     vector<mypcl::pose> ref_vec;
     // read ref.txt, the first line is 1 2 3, store them to ref_lidar
     {
@@ -102,7 +109,7 @@ int main(int argc, char** argv)
         std::stringstream ss(ref_line);
         std::string ref_str;
         while(ss >> ref_str)
-            ref_lidar.push_back(std::stoi(ref_str));
+            ref_lidar.push_back(ref_str);
         
         IC(ref_lidar);
 
@@ -118,23 +125,66 @@ int main(int argc, char** argv)
     size_t pose_size = pose_vec.size();    
 
     vector<pcl::PointCloud<PointType>::Ptr> base_pc, ref_pc;
-    base_pc.resize(pose_size);
     ref_pc.resize(pose_size * ref_size);    // col is pose and row is refsize, ref x pose
-    for(size_t i = 0; i < pose_size; i++)
-    {
-        pcl::PointCloud<PointType>::Ptr pc_base(new pcl::PointCloud<PointType>);
-        pcl::io::loadPCDFile(data_path+to_string(base_lidar)+"/"+to_string(i)+".pcd", *pc_base);
-        base_pc[i] = pc_base;
-    }
-    for(size_t i = 0; i < ref_size; i++){
-        for(size_t j = 0; j < pose_size; j++)
+
+    if(bag_name.empty()){
+        base_pc.resize(pose_size);
+        for(size_t i = 0; i < pose_size; i++)
         {
-            pcl::PointCloud<PointType>::Ptr pc_ref(new pcl::PointCloud<PointType>);
-            pcl::io::loadPCDFile(data_path+to_string(ref_lidar[i])+"/"+to_string(j)+".pcd", *pc_ref);
-            ref_pc[i*pose_size+j] = pc_ref;
+            pcl::PointCloud<PointType>::Ptr pc_base(new pcl::PointCloud<PointType>);
+            pcl::io::loadPCDFile(data_path+to_string(base_lidar)+"/"+to_string(i)+".pcd", *pc_base);
+            base_pc[i] = pc_base;
         }
+        for(size_t i = 0; i < ref_size; i++){
+            for(size_t j = 0; j < pose_size; j++)
+            {
+                pcl::PointCloud<PointType>::Ptr pc_ref(new pcl::PointCloud<PointType>);
+                pcl::io::loadPCDFile(data_path+ref_lidar[i]+"/"+to_string(j)+".pcd", *pc_ref);
+                ref_pc[i*pose_size+j] = pc_ref;
+            }
+        }
+    }else{
+        int pose_idx = 0;
+        int ref_cnt = 0;
+        // load from rosbag
+        rosbag::Bag bag(data_path + bag_name, rosbag::bagmode::Read);
+        // iterate the bag
+        for(auto& m : rosbag::View(bag)){
+            if(m.getTopic() == odom_topic){
+                nav_msgs::Odometry::ConstPtr pose = m.instantiate<nav_msgs::Odometry>();
+                auto q = pose->pose.pose.orientation;
+                auto p = pose->pose.pose.position;
+                Eigen::Quaterniond eq(q.w, q.x, q.y, q.z);
+                Eigen::Vector3d et(p.x, p.y, p.z);
+                pose_vec.push_back(mypcl::pose(eq, et));
+            }else if(m.getTopic() == base_lidar_topic){
+                sensor_msgs::PointCloud2::ConstPtr cloud = m.instantiate<sensor_msgs::PointCloud2>();
+                pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
+                pcl::fromROSMsg(*cloud, *pc);
+                base_pc.push_back(pc);
+            }else{
+                for(int i=0; i<ref_size; i++){
+                    if(m.getTopic() == ref_lidar[i]){
+                        sensor_msgs::PointCloud2::ConstPtr cloud = m.instantiate<sensor_msgs::PointCloud2>();
+                        pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
+                        pcl::fromROSMsg(*cloud, *pc);
+                        ref_pc[i*pose_size+pose_idx] = pc;
+                        ref_cnt++;
+                    }
+                }
+                if(ref_cnt == ref_size)
+                {
+                    pose_idx++;
+                    ref_cnt = 0;
+                }
+            }
+        }
+        IC(pose_idx);
     }
     IC();
+
+/*
+
     ros::Time t_begin, t_end, cur_t;
     double avg_time = 0.0;
     int loop = 0;
@@ -231,5 +281,6 @@ int main(int argc, char** argv)
 
     ros::spin();
 
+*/
     return 0;
 }

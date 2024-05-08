@@ -1,7 +1,7 @@
 <launch>
   <node pkg="mlcc" type="global" name="global" output="screen">
     <!-- test scene -->
-    <param name="data_path" type="string" value="$(find mlcc)/scene2/"/>
+    <param name="data_path" type="string" value="$(find mlcc)/scene3/"/>
 
     <!-- optimization iteration number -->
     <param name="max_iter" type="int" value="10"/>
@@ -9,9 +9,9 @@
     <!-- base LiDAR: 0-2 is the MID from left to right, 3 is AVIA -->
     <param name="base_lidar" type="int" value="3"/>
 
-    <param name="bag_name" type="string" value=""/>
-    <param name="base_lidar_topic" type="string" value="avia2"/>
-    <param name="ref_lidar_topic" type="string" value="avia2"/>
+    <!-- <param name="bag_name" type="string" value=""/> -->
+    <param name="bag_name" type="string" value="fivelids.bag"/>
+    <param name="base_lidar_topic" type="string" value="avia1"/>
     <param name="odom_topic" type="string" value="odom"/>
     <param name="pub_hz" type="double" value="5.0"/>
 
