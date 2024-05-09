@@ -10,6 +10,8 @@ Clone the repository and `catkin build` it.
 
 ## 3. Run Our Example
 
+**Be carefule, the format of pose is xyz-wxyz.**
+
 Just a heads up, I clear the git cache of dataset folder for faster push and pull. You can fetch the dataset from the original branch `main`.
 
 The parameters base LiDAR (`AVIA` or `MID`), test scene (`scene-1` or `scene-2`), `adaptive_voxel_size`, etc., could be modified in the corresponding launch file. We also provide the original rosbag files ([scene-1](https://drive.google.com/file/d/1x6wGXzZHTZiM9oz7_c4DludH0Q7sgy0e/view?usp=sharing) and [scene-2](https://drive.google.com/file/d/1cwjf2Uei2vX2Uqcz5DJtDTPlRcl592sn/view?usp=sharing)) for your reference.

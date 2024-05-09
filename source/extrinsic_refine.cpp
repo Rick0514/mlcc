@@ -89,8 +89,9 @@ int main(int argc, char** argv)
     ros::NodeHandle nh("~");
 
     string data_path, bag_name, log_path;
-    string odom_topic, base_lidar_topic, ref_lidar_topic;
-    int max_iter, base_lidar, ref_lidar;
+    string odom_topic, base_lidar_topic;
+    string ref_lidar;
+    int max_iter, base_lidar;
     double downsmp_base, downsmp_ref;
     double pub_hz = 5.0;
 
@@ -98,7 +99,6 @@ int main(int argc, char** argv)
     nh.getParam("log_path", log_path);
     nh.getParam("max_iter", max_iter);
     nh.getParam("base_lidar", base_lidar);
-    nh.getParam("ref_lidar", ref_lidar);
     nh.getParam("voxel_size", voxel_size);
     nh.getParam("eigen_threshold", eigen_thr);
     nh.getParam("downsample_base", downsmp_base);
@@ -107,15 +107,30 @@ int main(int argc, char** argv)
     nh.getParam("bag_name", bag_name);
     nh.getParam("odom_topic", odom_topic);
     nh.getParam("base_lidar_topic", base_lidar_topic);
-    nh.getParam("ref_lidar_topic", ref_lidar_topic);
     nh.getParam("pub_hz", pub_hz);
 
-
-    size_t ref_size, pose_size;
-    vector<mypcl::pose> pose_vec;
+    mypcl::pose ref_pose(Quaterniond(1, 0, 0, 0), Vector3d(0, 0, 0));
     
-    vector<mypcl::pose> ref_vec = mypcl::read_pose(data_path + "ref.json");
-    ref_size = ref_vec.size();
+    // the first string is the ref lidar
+    // the second line is the ref pose
+    {
+        std::ifstream inf(data_path + "ref.json");
+        string line;
+        getline(inf, line);
+        stringstream ss1(line);
+        ss1 >> ref_lidar;
+        
+        getline(inf, line);
+        stringstream ss2(line);
+        
+        double tx, ty, tz, w, x, y, z;
+        ss2 >> tx >> ty >> tz >> w >> x >> y >> z;
+        ref_pose = mypcl::pose(Eigen::Quaterniond(w, x, y, z),
+                Eigen::Vector3d(tx, ty, tz));
+    }
+    
+    vector<mypcl::pose> pose_vec;
+    size_t pose_size;
 
     vector<pcl::PointCloud<PointType>::Ptr> base_pc, ref_pc;
     if(bag_name.empty()){
@@ -129,14 +144,14 @@ int main(int argc, char** argv)
             pcl::PointCloud<PointType>::Ptr pc_base(new pcl::PointCloud<PointType>);
             pcl::PointCloud<PointType>::Ptr pc_ref(new pcl::PointCloud<PointType>);
             pcl::io::loadPCDFile(data_path+to_string(base_lidar)+"/"+to_string(i)+".pcd", *pc_base);
-            pcl::io::loadPCDFile(data_path+to_string(ref_lidar)+"/"+to_string(i)+".pcd", *pc_ref);
+            pcl::io::loadPCDFile(data_path+ref_lidar+"/"+to_string(i)+".pcd", *pc_ref);
             base_pc[i] = pc_base;
             ref_pc[i] = pc_ref;
         }
     }else{
         // load from rosbag
         rosbag::Bag bag(data_path + bag_name, rosbag::bagmode::Read);
-        vector<string> topics{odom_topic, base_lidar_topic, ref_lidar_topic};
+        vector<string> topics{odom_topic, base_lidar_topic, ref_lidar};
         rosbag::View view(bag, rosbag::TopicQuery(topics));
         // iterate the bag
         for(auto it = view.begin(); it != view.end(); it++){
@@ -153,7 +168,7 @@ int main(int argc, char** argv)
                 pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
                 pcl::fromROSMsg(*cloud, *pc);
                 base_pc.push_back(pc);
-            }else if(m.getTopic() == ref_lidar_topic){
+            }else if(m.getTopic() == ref_lidar){
                 sensor_msgs::PointCloud2::ConstPtr cloud = m.instantiate<sensor_msgs::PointCloud2>();
                 pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
                 pcl::fromROSMsg(*cloud, *pc);
@@ -175,7 +190,7 @@ int main(int argc, char** argv)
         cout << "iteration " << loop << endl;
         t_begin = ros::Time::now();
         unordered_map<VOXEL_LOC, OCTO_TREE*> surf_map;
-        EXTRIN_OPTIMIZER lm_opt(pose_size, ref_size);
+        EXTRIN_OPTIMIZER lm_opt(pose_size, 1);
         cur_t = ros::Time::now();
 
         for(size_t i = 0; i < pose_size; i++)
@@ -190,8 +205,8 @@ int main(int argc, char** argv)
 
             cut_voxel(surf_map, tmp1, pose_vec[i].q, pose_vec[i].t, i, pose_size, eigen_thr);
             
-            cut_voxel(surf_map, tmp2, pose_vec[i].q * ref_vec[0].q,
-                        pose_vec[i].q * ref_vec[0].t + pose_vec[i].t, i, pose_size, eigen_thr, false);
+            cut_voxel(surf_map, tmp2, pose_vec[i].q * ref_pose.q,
+                        pose_vec[i].q * ref_pose.t + pose_vec[i].t, i, pose_size, eigen_thr, false);
         }
 
         for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
@@ -200,16 +215,14 @@ int main(int argc, char** argv)
         for(size_t i = 0; i < pose_size; i++)
             assign_qt(lm_opt.poses[i], lm_opt.ts[i], pose_vec[i].q, pose_vec[i].t);
 
-        for(size_t i = 0; i < ref_size; i++)
-            assign_qt(lm_opt.refQs[i], lm_opt.refTs[i], ref_vec[i].q, ref_vec[i].t);
+        assign_qt(lm_opt.refQs[0], lm_opt.refTs[0], ref_pose.q, ref_pose.t);
 
         for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
             iter->second->feed_pt(lm_opt);
 
         lm_opt.optimize();
 
-        for(size_t i = 0; i < ref_size; i++)
-            assign_qt(ref_vec[i].q, ref_vec[i].t, lm_opt.refQs[i], lm_opt.refTs[i]);
+        assign_qt(ref_pose.q, ref_pose.t, lm_opt.refQs[0], lm_opt.refTs[0]);
 
         for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
             delete iter->second;
@@ -227,8 +240,8 @@ int main(int argc, char** argv)
             pc_color = mypcl::append_cloud(pc_color, *pc_debug);
         
             mypcl::transform_pointcloud(*ref_pc[i], *pc_debug,
-                q0.inverse()*(pose_vec[i].t-t0)+q0.inverse()*pose_vec[i].q*ref_vec[0].t,
-                q0.inverse()*pose_vec[i].q*ref_vec[0].q);
+                q0.inverse()*(pose_vec[i].t-t0)+q0.inverse()*pose_vec[i].q*ref_pose.t,
+                q0.inverse()*pose_vec[i].q*ref_pose.q);
             pc_color = mypcl::append_cloud(pc_color, *pc_debug);
         }
 
@@ -241,7 +254,41 @@ int main(int argc, char** argv)
     cout << "---------------------" << endl;
     cout << "complete" << endl;
     cout << "averaged iteration time " << avg_time / (loop+1) << endl;
-    mypcl::write_ref(ref_vec, data_path);
+
+    {
+        // change the ref.json the second line and the third line with new ref pose
+        std::ifstream inf(data_path + "ref.json");
+        string line, each;
+        string first_line;
+        getline(inf, first_line);
+        line = first_line;
+        stringstream ss1(line);
+        int num = 0;
+        while(ss1 >> each)  num++;
+        
+        vector<string> save_lines;
+
+        for(int i=0; i<num+2; i++){
+            getline(inf, line);
+            if(i > 1)   save_lines.push_back(line);
+        }
+        inf.close();
+        
+        std::ofstream out(data_path + "ref.json");
+        out << first_line << endl;
+
+        for(int i=0; i<2; i++){
+            Eigen::Quaterniond q = ref_pose.q;
+            Eigen::Vector3d t = ref_pose.t;
+            out << t(0) << " " << t(1) << " " << t(2) << " "
+                << q.w() << " "<< q.x() << " "<< q.y() << " "<< q.z() << "\n";
+        }
+        
+        for(auto e : save_lines)    out << e << endl;
+        out.close();
+    }
+
+    // mypcl::write_ref(ref_vec, data_path);
 
     // Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), pose_vec[0].q.y(), pose_vec[0].q.z());
     // Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));

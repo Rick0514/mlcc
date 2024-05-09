@@ -193,16 +193,17 @@ int main(int argc, char** argv)
             }
         }
         IC(pose_idx);
+
+        // right multiply the p_b2l to each pose in pose_vec
+        for(auto& pose : pose_vec)
+        {
+            pose.q = pose.q * p_b2l.q;
+            pose.t = pose.q * p_b2l.t + pose.t;
+        }
     }
     IC();
 
-    // right multiply the p_b2l to each pose in pose_vec
-    for(auto& pose : pose_vec)
-    {
-        pose.q = pose.q * p_b2l.q;
-        pose.t = pose.q * p_b2l.t + pose.t;
-    }
-
+    
     ros::Time t_begin, t_end, cur_t;
     double avg_time = 0.0;
     int loop = 0;

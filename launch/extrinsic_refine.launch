@@ -14,7 +14,6 @@ ref.json file and feed them to the global optimization in next step. -->
     <!-- <param name="bag_name" type="string" value="fivelids.bag"/> -->
     <param name="bag_name" type="string" value=""/>
     <param name="base_lidar_topic" type="string" value="avia2"/>
-    <param name="ref_lidar_topic" type="string" value="avia2"/>
     <param name="odom_topic" type="string" value="odom"/>
     <param name="pub_hz" type="double" value="5.0"/>
 
@@ -23,9 +22,6 @@ ref.json file and feed them to the global optimization in next step. -->
 
     <!-- base LiDAR: 0-2 is the MID from left to right, 3 is AVIA -->
     <param name="base_lidar" type="int" value="3"/>
-
-    <!-- LiDAR to be calibrated -->
-    <param name="ref_lidar" type="int" value="2"/>
 
     <!-- largest voxel size:
     if AVIA is set as base LiDAR use 4, if MID is set as base LiDAR use 1 -->
