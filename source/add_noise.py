@@ -11,11 +11,11 @@ rospack = rospkg.RosPack()
 pkg_dir = rospack.get_path('mlcc')
 print(pkg_dir)
 
-data_dir = pkg_dir + '/scene2/'
+data_dir = pkg_dir + '/scene3/'
 print(data_dir)
 
 gt_fn = data_dir + 'ext.txt'
-exts = np.loadtxt(gt_fn, skiprows=1)
+exts = np.loadtxt(gt_fn, skiprows=2)
 print(exts)
 
 # read the first line of gt.txt
@@ -25,7 +25,7 @@ with open(gt_fn, 'r') as f:
         two_line.append(f.readline())
 
 # angle noise and trans noise
-noise_std = [0, 0]
+noise_std = [5, 0.1]
 
 # add noise to pose ext, each row is a pose: xyzw xyz
 rows, cols = exts.shape
@@ -39,7 +39,9 @@ for i in range(rows):
     t = e[:3]
 
     ag = pr.axis_angle_from_quaternion(q)
-    ag += np.random.normal(0, noise_std[0] * to_rad, 1)
+    print(ag)
+    ag[-1] += np.random.normal(0, noise_std[0] * to_rad, 1)
+    print(ag)
 
     nq = pr.quaternion_from_axis_angle(ag)
     # add noise to translation

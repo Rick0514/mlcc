@@ -9,13 +9,13 @@ ref.json file and feed them to the global optimization in next step. -->
 <launch>
   <node pkg="mlcc" type="extrinsic_refine" name="extrinsic_refine" output="screen">
     <!-- test scene -->
-    <param name="data_path" type="string" value="$(find mlcc)/scene2/"/>
+    <param name="data_path" type="string" value="$(find mlcc)/scene3/"/>
 
-    <!-- <param name="bag_name" type="string" value="fivelids.bag"/> -->
-    <param name="bag_name" type="string" value=""/>
-    <param name="base_lidar_topic" type="string" value="avia2"/>
-    <param name="odom_topic" type="string" value="odom"/>
-    <param name="pub_hz" type="double" value="5.0"/>
+    <!-- <param name="bag_name" type="string" value=""/> -->
+    <param name="bag_name" type="string" value="fivelids.bag"/>
+    <param name="base_lidar_topic" type="string" value="avia1"/>
+    <param name="odom_topic" type="string" value="gt_odom"/>
+    <param name="pub_hz" type="double" value="2.0"/>
 
     <!-- optimization iteration number -->
     <param name="max_iter" type="int" value="10"/>

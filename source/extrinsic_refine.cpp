@@ -18,6 +18,7 @@
 #include "extrinsic_refine.hpp"
 #include "BA/mypcl.hpp"
 #include "BA/tools.hpp"
+#include <icecream.hpp>
 
 using namespace std;
 using namespace Eigen;
@@ -110,23 +111,30 @@ int main(int argc, char** argv)
     nh.getParam("pub_hz", pub_hz);
 
     mypcl::pose ref_pose(Quaterniond(1, 0, 0, 0), Vector3d(0, 0, 0));
+    mypcl::pose b2l(Quaterniond(1, 0, 0, 0), Vector3d(0, 0, 0));
     
     // the first string is the ref lidar
-    // the second line is the ref pose
+    // the third line is the first ref pose
     {
         std::ifstream inf(data_path + "ref.json");
         string line;
         getline(inf, line);
         stringstream ss1(line);
-        ss1 >> ref_lidar;
+        ss1 >> ref_lidar;   IC(ref_lidar);
         
         getline(inf, line);
         stringstream ss2(line);
-        
         double tx, ty, tz, w, x, y, z;
         ss2 >> tx >> ty >> tz >> w >> x >> y >> z;
+        b2l = mypcl::pose(Eigen::Quaterniond(w, x, y, z),
+                Eigen::Vector3d(tx, ty, tz));
+
+        getline(inf, line);
+        stringstream ss3(line);
+        ss3 >> tx >> ty >> tz >> w >> x >> y >> z;
         ref_pose = mypcl::pose(Eigen::Quaterniond(w, x, y, z),
                 Eigen::Vector3d(tx, ty, tz));
+        IC(tx, ty, tz);
     }
     
     vector<mypcl::pose> pose_vec;
@@ -175,7 +183,20 @@ int main(int argc, char** argv)
                 ref_pc.push_back(pc);
             }
         }
+        
+        pose_size = pose_vec.size();
+
+        IC(pose_size, base_pc.size(), ref_pc.size());
+        // right multiply the p_b2l to each pose in pose_vec
+        for(auto& pose : pose_vec)
+        {
+            pose.q = pose.q * b2l.q;
+            pose.t = pose.q * b2l.t + pose.t;
+        }
     }
+
+    // wait for rviz
+    this_thread::sleep_for(chrono::seconds(2));
 
     double avg_time = 0.0;
     ros::Time t_begin, t_end, cur_t;
@@ -228,8 +249,13 @@ int main(int argc, char** argv)
             delete iter->second;
 
         t_end = ros::Time::now();
-        cout << "time cost " << (t_end-t_begin).toSec() << endl;
-        avg_time += (t_end-t_begin).toSec();
+        double cost_time = (t_end-t_begin).toSec();
+        cout << "time cost " << cost_time << endl;
+        avg_time += cost_time;
+        
+        if(cost_time < 1.0 / pub_hz){
+            ros::Duration(1.0 / pub_hz - cost_time).sleep();
+        }
 
         pc_color->clear();
         Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), pose_vec[0].q.y(), pose_vec[0].q.z());
@@ -249,6 +275,8 @@ int main(int argc, char** argv)
         debugMsg.header.frame_id = "camera_init";
         debugMsg.header.stamp = cur_t;
         pub_surf_debug.publish(debugMsg);
+
+        if(!nh.ok())    return 0;
     }
   
     cout << "---------------------" << endl;
@@ -256,33 +284,38 @@ int main(int argc, char** argv)
     cout << "averaged iteration time " << avg_time / (loop+1) << endl;
 
     {
-        // change the ref.json the second line and the third line with new ref pose
+        // change the ref.json the third line with new ref pose
         std::ifstream inf(data_path + "ref.json");
         string line, each;
-        string first_line;
-        getline(inf, first_line);
-        line = first_line;
-        stringstream ss1(line);
+        vector<string> first_lines;
+        getline(inf, line);
+        first_lines.push_back(line);
+        getline(inf, line);
+        first_lines.push_back(line);
+        
+        stringstream ss1(first_lines[0]);
         int num = 0;
         while(ss1 >> each)  num++;
         
+        IC(first_lines, num);
+
         vector<string> save_lines;
 
-        for(int i=0; i<num+2; i++){
+        for(int i=0; i<num; i++){
             getline(inf, line);
-            if(i > 1)   save_lines.push_back(line);
+            if(i)   save_lines.push_back(line);
         }
         inf.close();
         
-        std::ofstream out(data_path + "ref.json");
-        out << first_line << endl;
+        IC(save_lines);
 
-        for(int i=0; i<2; i++){
-            Eigen::Quaterniond q = ref_pose.q;
-            Eigen::Vector3d t = ref_pose.t;
-            out << t(0) << " " << t(1) << " " << t(2) << " "
-                << q.w() << " "<< q.x() << " "<< q.y() << " "<< q.z() << "\n";
-        }
+        std::ofstream out(data_path + "ref.json");
+        for(auto e : first_lines)   out << e << endl;
+
+        Eigen::Quaterniond q = ref_pose.q;
+        Eigen::Vector3d t = ref_pose.t;
+        out << t(0) << " " << t(1) << " " << t(2) << " "
+            << q.w() << " "<< q.x() << " "<< q.y() << " "<< q.z() << "\n";
         
         for(auto e : save_lines)    out << e << endl;
         out.close();
