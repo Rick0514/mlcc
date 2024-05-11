@@ -5,7 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /map_surf1/Status1
+        - /map_surf1
       Splitter Ratio: 0.5965417623519897
     Tree Height: 874
   - Class: rviz/Selection
@@ -164,7 +164,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 1
+      Size (Pixels): 2
       Size (m): 0.009999999776482582
       Style: Points
       Topic: /global/ref_lidar0
@@ -192,7 +192,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 1
+      Size (Pixels): 2
       Size (m): 0.009999999776482582
       Style: Points
       Topic: /global/ref_lidar1
@@ -220,7 +220,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 1
+      Size (Pixels): 2
       Size (m): 0.009999999776482582
       Style: Points
       Topic: /global/ref_lidar2
@@ -340,25 +340,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 93.12752532958984
+      Distance: 50.18349838256836
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 3.844853401184082
-        Y: -1.9284865856170654
-        Z: -0.4421505033969879
+        X: 1.7311270236968994
+        Y: -2.202360153198242
+        Z: -0.7360060214996338
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5697963237762451
+      Pitch: 0.6497975587844849
       Target Frame: aft_mapped
       Value: Orbit (rviz)
-      Yaw: 4.658560276031494
+      Yaw: 4.2636332511901855
     Saved:
       - Class: rviz/Orbit
         Distance: 58.149932861328125

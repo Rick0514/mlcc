@@ -1,8 +1,9 @@
 <launch>
+   launch-prefix="gdb -ex run --args">
   <node pkg="mlcc" type="global" name="global" output="screen">
     <!-- test scene -->
-    <param name="data_path" type="string" value="$(find mlcc)/scene2/"/>
-    <!-- <param name="data_path" type="string" value="$(find mlcc)/scene3/"/> -->
+    <!-- <param name="data_path" type="string" value="$(find mlcc)/scene2/"/> -->
+    <param name="data_path" type="string" value="$(find mlcc)/scene3/"/>
 
     <!-- optimization iteration number -->
     <param name="max_iter" type="int" value="10"/>
@@ -10,24 +11,25 @@
     <!-- base LiDAR: 0-2 is the MID from left to right, 3 is AVIA -->
     <param name="base_lidar" type="int" value="3"/>
 
-    <param name="bag_name" type="string" value=""/>
-    <!-- <param name="bag_name" type="string" value="fivelids.bag"/> -->
+    <!-- <param name="bag_name" type="string" value=""/> -->
+    <param name="bag_name" type="string" value="fivelids.bag"/>
     <param name="base_lidar_topic" type="string" value="avia1"/>
     <param name="odom_topic" type="string" value="odom"/>
     <param name="pub_hz" type="double" value="5.0"/>
+    <param name="load_pose" type="bool" value="true"/>
 
     <!-- largest voxel size:
     if AVIA is set as base LiDAR use 4, if MID is set as base LiDAR use 1 -->
-    <param name="voxel_size" type="double" value="4"/>
+    <param name="voxel_size" type="double" value="1"/>
 
     <!-- base LiDAR downsampling size:
     if AVIA is set as base LiDAR use 0.4, if MID is set as base LiDAR use 0.1 -->
-    <param name="downsample_base" type="double" value="0.4"/>
+    <param name="downsample_base" type="double" value="0.2"/>
 
     <!-- LiDAR to be calibrated downsampling size:
     if AVIA is set as base LiDAR use 0.2 (e.g., using AVIA to calibrate MID),
     if MID is set as base LiDAR use 0.1 (e.g., MID self calibration) -->
-    <param name="downsample_ref" type="double" value="0.1"/>
+    <param name="downsample_ref" type="double" value="0.2"/>
     <param name="eigen_threshold" type="double" value="10"/>
   </node>
 

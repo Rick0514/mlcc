@@ -82,6 +82,7 @@ int main(int argc, char** argv)
 
     string data_path, bag_name;
     string odom_topic, base_lidar_topic;
+    bool load_pose = true;
     int max_iter, base_lidar;
     double downsmp_base, downsmp_ref, pub_hz;
     
@@ -96,6 +97,7 @@ int main(int argc, char** argv)
     nh.getParam("odom_topic", odom_topic);
     nh.getParam("base_lidar_topic", base_lidar_topic);
     nh.getParam("pub_hz", pub_hz);
+    nh.getParam("load_pose", load_pose);
 
     // wait for rviz
     this_thread::sleep_for(chrono::seconds(2));
@@ -175,6 +177,9 @@ int main(int argc, char** argv)
                 base_pc.push_back(pc);
             }
         }
+        if(load_pose)
+            pose_vec = mypcl::read_pose(data_path + "pose.json");
+        
         pose_size = pose_vec.size();  IC(pose_vec.size());
         ref_pc.resize(pose_size * ref_size);    // col is pose and row is refsize, ref x pose
 
@@ -206,7 +211,6 @@ int main(int argc, char** argv)
     }
     IC();
 
-    
     ros::Time t_begin, t_end, cur_t;
     double avg_time = 0.0;
     int loop = 0;

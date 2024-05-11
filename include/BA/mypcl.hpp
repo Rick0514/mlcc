@@ -35,16 +35,17 @@ namespace mypcl
   std::vector<pose> read_pose(std::string path)
   {
     std::vector<pose> pose_vec;
-    std::fstream file;
-    file.open(path);
+    std::ifstream file(path);
     double tx, ty, tz, w, x, y, z;
-    int cnt = 0;
-    while(!file.eof())
+    string line;
+    while(std::getline(file, line))
     {
-      file >> tx >> ty >> tz >> w >> x >> y >> z;
-      pose_vec.emplace_back(pose(Eigen::Quaterniond(w, x, y, z),
-                            Eigen::Vector3d(tx, ty, tz)));
-      cnt++;
+        if(line.size() > 7){
+            stringstream ss(line);
+            ss >> tx >> ty >> tz >> w >> x >> y >> z;
+            pose_vec.emplace_back(pose(Eigen::Quaterniond(w, x, y, z),
+                                Eigen::Vector3d(tx, ty, tz)));
+        }
     }
     file.close();
     return pose_vec;
