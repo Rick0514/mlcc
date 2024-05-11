@@ -91,7 +91,7 @@ int main(int argc, char** argv)
 
     string data_path, bag_name, log_path;
     string odom_topic, base_lidar_topic;
-    string ref_lidar;
+    vector<string> ref_lidar;
     int max_iter, base_lidar;
     double downsmp_base, downsmp_ref;
     double pub_hz = 5.0;
@@ -110,7 +110,7 @@ int main(int argc, char** argv)
     nh.getParam("base_lidar_topic", base_lidar_topic);
     nh.getParam("pub_hz", pub_hz);
 
-    mypcl::pose ref_pose(Quaterniond(1, 0, 0, 0), Vector3d(0, 0, 0));
+    vector<mypcl::pose> ref_poses;
     mypcl::pose b2l(Quaterniond(1, 0, 0, 0), Vector3d(0, 0, 0));
     
     // the first string is the ref lidar
@@ -120,7 +120,9 @@ int main(int argc, char** argv)
         string line;
         getline(inf, line);
         stringstream ss1(line);
-        ss1 >> ref_lidar;   IC(ref_lidar);
+        while (ss1 >> line) ref_lidar.push_back(line);
+        
+        IC(ref_lidar);
         
         getline(inf, line);
         stringstream ss2(line);
@@ -129,159 +131,161 @@ int main(int argc, char** argv)
         b2l = mypcl::pose(Eigen::Quaterniond(w, x, y, z),
                 Eigen::Vector3d(tx, ty, tz));
 
-        getline(inf, line);
-        stringstream ss3(line);
-        ss3 >> tx >> ty >> tz >> w >> x >> y >> z;
-        ref_pose = mypcl::pose(Eigen::Quaterniond(w, x, y, z),
-                Eigen::Vector3d(tx, ty, tz));
-        IC(tx, ty, tz);
+        for(int i=0; i<ref_lidar.size(); i++){
+            getline(inf, line);
+            stringstream ss3(line);
+            ss3 >> tx >> ty >> tz >> w >> x >> y >> z;
+            ref_poses.push_back(mypcl::pose(Eigen::Quaterniond(w, x, y, z),
+                    Eigen::Vector3d(tx, ty, tz)));
+        }
     }
     
-    vector<mypcl::pose> pose_vec;
-    size_t pose_size;
+    for(int ld=0; ld<ref_lidar.size(); ld++){
+        cout << "---------lidar "<< ref_lidar[ld] << " -----------" << endl;
+        vector<mypcl::pose> pose_vec;
+        size_t pose_size;
 
-    vector<pcl::PointCloud<PointType>::Ptr> base_pc, ref_pc;
-    if(bag_name.empty()){
-        pose_vec = mypcl::read_pose(data_path + "pose.json");
-        pose_size = pose_vec.size();
-        base_pc.resize(pose_size);
-        ref_pc.resize(pose_size);
+        vector<pcl::PointCloud<PointType>::Ptr> base_pc, ref_pc;
+        if(bag_name.empty()){
+            pose_vec = mypcl::read_pose(data_path + "pose.json");
+            pose_size = pose_vec.size();
+            base_pc.resize(pose_size);
+            ref_pc.resize(pose_size);
 
-        for(size_t i = 0; i < pose_size; i++)
-        {
-            pcl::PointCloud<PointType>::Ptr pc_base(new pcl::PointCloud<PointType>);
-            pcl::PointCloud<PointType>::Ptr pc_ref(new pcl::PointCloud<PointType>);
-            pcl::io::loadPCDFile(data_path+to_string(base_lidar)+"/"+to_string(i)+".pcd", *pc_base);
-            pcl::io::loadPCDFile(data_path+ref_lidar+"/"+to_string(i)+".pcd", *pc_ref);
-            base_pc[i] = pc_base;
-            ref_pc[i] = pc_ref;
-        }
-    }else{
-        // load from rosbag
-        rosbag::Bag bag(data_path + bag_name, rosbag::bagmode::Read);
-        vector<string> topics{odom_topic, base_lidar_topic, ref_lidar};
-        rosbag::View view(bag, rosbag::TopicQuery(topics));
-        // iterate the bag
-        for(auto it = view.begin(); it != view.end(); it++){
-            auto m = *it;
-            if(m.getTopic() == odom_topic){
-                nav_msgs::Odometry::ConstPtr pose = m.instantiate<nav_msgs::Odometry>();
-                auto q = pose->pose.pose.orientation;
-                auto p = pose->pose.pose.position;
-                Eigen::Quaterniond eq(q.w, q.x, q.y, q.z);
-                Eigen::Vector3d et(p.x, p.y, p.z);
-                pose_vec.push_back(mypcl::pose(eq, et));
-            }else if(m.getTopic() == base_lidar_topic){
-                sensor_msgs::PointCloud2::ConstPtr cloud = m.instantiate<sensor_msgs::PointCloud2>();
-                pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
-                pcl::fromROSMsg(*cloud, *pc);
-                base_pc.push_back(pc);
-            }else if(m.getTopic() == ref_lidar){
-                sensor_msgs::PointCloud2::ConstPtr cloud = m.instantiate<sensor_msgs::PointCloud2>();
-                pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
-                pcl::fromROSMsg(*cloud, *pc);
-                ref_pc.push_back(pc);
+            for(size_t i = 0; i < pose_size; i++)
+            {
+                pcl::PointCloud<PointType>::Ptr pc_base(new pcl::PointCloud<PointType>);
+                pcl::PointCloud<PointType>::Ptr pc_ref(new pcl::PointCloud<PointType>);
+                pcl::io::loadPCDFile(data_path+to_string(base_lidar)+"/"+to_string(i)+".pcd", *pc_base);
+                pcl::io::loadPCDFile(data_path+ref_lidar[ld]+"/"+to_string(i)+".pcd", *pc_ref);
+                base_pc[i] = pc_base;
+                ref_pc[i] = pc_ref;
+            }
+        }else{
+            // load from rosbag
+            rosbag::Bag bag(data_path + bag_name, rosbag::bagmode::Read);
+            vector<string> topics{odom_topic, base_lidar_topic, ref_lidar[ld]};
+            rosbag::View view(bag, rosbag::TopicQuery(topics));
+            // iterate the bag
+            for(auto it = view.begin(); it != view.end(); it++){
+                auto m = *it;
+                if(m.getTopic() == odom_topic){
+                    nav_msgs::Odometry::ConstPtr pose = m.instantiate<nav_msgs::Odometry>();
+                    auto q = pose->pose.pose.orientation;
+                    auto p = pose->pose.pose.position;
+                    Eigen::Quaterniond eq(q.w, q.x, q.y, q.z);
+                    Eigen::Vector3d et(p.x, p.y, p.z);
+                    pose_vec.push_back(mypcl::pose(eq, et));
+                }else if(m.getTopic() == base_lidar_topic){
+                    sensor_msgs::PointCloud2::ConstPtr cloud = m.instantiate<sensor_msgs::PointCloud2>();
+                    pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
+                    pcl::fromROSMsg(*cloud, *pc);
+                    base_pc.push_back(pc);
+                }else if(m.getTopic() == ref_lidar[ld]){
+                    sensor_msgs::PointCloud2::ConstPtr cloud = m.instantiate<sensor_msgs::PointCloud2>();
+                    pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
+                    pcl::fromROSMsg(*cloud, *pc);
+                    ref_pc.push_back(pc);
+                }
+            }
+            
+            pose_size = pose_vec.size();
+
+            IC(pose_size, base_pc.size(), ref_pc.size());
+            // right multiply the p_b2l to each pose in pose_vec
+            for(auto& pose : pose_vec)
+            {
+                pose.q = pose.q * b2l.q;
+                pose.t = pose.q * b2l.t + pose.t;
             }
         }
-        
-        pose_size = pose_vec.size();
 
-        IC(pose_size, base_pc.size(), ref_pc.size());
-        // right multiply the p_b2l to each pose in pose_vec
-        for(auto& pose : pose_vec)
+        double avg_time = 0.0;
+        ros::Time t_begin, t_end, cur_t;
+        // sensor_msgs::PointCloud2 debugMsg, colorCloudMsg;
+        // ros::Publisher pub_surf_debug = nh.advertise<sensor_msgs::PointCloud2>("/debug_surf", 10, true);
+        // pcl::PointCloud<PointType>::Ptr pc_debug(new pcl::PointCloud<PointType>);
+        // pcl::PointCloud<PointType>::Ptr pc_color(new pcl::PointCloud<PointType>);
+        int loop = 0;
+        for(; loop < max_iter; loop++)
         {
-            pose.q = pose.q * b2l.q;
-            pose.t = pose.q * b2l.t + pose.t;
-        }
-    }
+            cout << "---------------------" << endl;
+            cout << "iteration " << loop << endl;
+            t_begin = ros::Time::now();
+            unordered_map<VOXEL_LOC, OCTO_TREE*> surf_map;
+            EXTRIN_OPTIMIZER lm_opt(pose_size, 1);
+            cur_t = ros::Time::now();
 
-    // wait for rviz
-    this_thread::sleep_for(chrono::seconds(2));
+            for(size_t i = 0; i < pose_size; i++)
+            {
+                pcl::PointCloud<PointType>::Ptr tmp1 = pcl::make_shared<pcl::PointCloud<PointType>>();
+                pcl::PointCloud<PointType>::Ptr tmp2 = pcl::make_shared<pcl::PointCloud<PointType>>();
+                *tmp1 = *base_pc[i];
+                *tmp2 = *ref_pc[i];
 
-    double avg_time = 0.0;
-    ros::Time t_begin, t_end, cur_t;
-    sensor_msgs::PointCloud2 debugMsg, colorCloudMsg;
-    ros::Publisher pub_surf_debug = nh.advertise<sensor_msgs::PointCloud2>("/debug_surf", 10, true);
-    pcl::PointCloud<PointType>::Ptr pc_debug(new pcl::PointCloud<PointType>);
-    pcl::PointCloud<PointType>::Ptr pc_color(new pcl::PointCloud<PointType>);
-    int loop = 0;
-    for(; loop < max_iter; loop++)
-    {
-        cout << "---------------------" << endl;
-        cout << "iteration " << loop << endl;
-        t_begin = ros::Time::now();
-        unordered_map<VOXEL_LOC, OCTO_TREE*> surf_map;
-        EXTRIN_OPTIMIZER lm_opt(pose_size, 1);
-        cur_t = ros::Time::now();
+                if(downsmp_base > 0) downsample_voxel(*tmp1, downsmp_base);
+                if(downsmp_ref > 0) downsample_voxel(*tmp2, downsmp_ref);
 
-        for(size_t i = 0; i < pose_size; i++)
-        {
-            pcl::PointCloud<PointType>::Ptr tmp1 = pcl::make_shared<pcl::PointCloud<PointType>>();
-            pcl::PointCloud<PointType>::Ptr tmp2 = pcl::make_shared<pcl::PointCloud<PointType>>();
-            *tmp1 = *base_pc[i];
-            *tmp2 = *ref_pc[i];
+                cut_voxel(surf_map, tmp1, pose_vec[i].q, pose_vec[i].t, i, pose_size, eigen_thr);
+                
+                cut_voxel(surf_map, tmp2, pose_vec[i].q * ref_poses[ld].q,
+                            pose_vec[i].q * ref_poses[ld].t + pose_vec[i].t, i, pose_size, eigen_thr, false);
+            }
 
-            if(downsmp_base > 0) downsample_voxel(*tmp1, downsmp_base);
-            if(downsmp_ref > 0) downsample_voxel(*tmp2, downsmp_ref);
+            for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
+                iter->second->recut();
 
-            cut_voxel(surf_map, tmp1, pose_vec[i].q, pose_vec[i].t, i, pose_size, eigen_thr);
+            for(size_t i = 0; i < pose_size; i++)
+                assign_qt(lm_opt.poses[i], lm_opt.ts[i], pose_vec[i].q, pose_vec[i].t);
+
+            assign_qt(lm_opt.refQs[0], lm_opt.refTs[0], ref_poses[ld].q, ref_poses[ld].t);
+
+            for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
+                iter->second->feed_pt(lm_opt);
+
+            lm_opt.optimize();
+
+            assign_qt(ref_poses[ld].q, ref_poses[ld].t, lm_opt.refQs[0], lm_opt.refTs[0]);
+
+            for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
+                delete iter->second;
+
+            t_end = ros::Time::now();
+            double cost_time = (t_end-t_begin).toSec();
+            cout << "time cost " << cost_time << endl;
+            avg_time += cost_time;
             
-            cut_voxel(surf_map, tmp2, pose_vec[i].q * ref_pose.q,
-                        pose_vec[i].q * ref_pose.t + pose_vec[i].t, i, pose_size, eigen_thr, false);
+            if(cost_time < 1.0 / pub_hz){
+                ros::Duration(1.0 / pub_hz - cost_time).sleep();
+            }
+
+            // pc_color->clear();
+            // Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), pose_vec[0].q.y(), pose_vec[0].q.z());
+            // Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));
+            // for(size_t i = 0; i < pose_size; i++)
+            // {
+            //     mypcl::transform_pointcloud(*base_pc[i], *pc_debug, q0.inverse()*(pose_vec[i].t-t0), q0.inverse()*pose_vec[i].q);
+            //     pc_color = mypcl::append_cloud(pc_color, *pc_debug);
+            
+            //     mypcl::transform_pointcloud(*ref_pc[i], *pc_debug,
+            //         q0.inverse()*(pose_vec[i].t-t0)+q0.inverse()*pose_vec[i].q*ref_poses[ld].t,
+            //         q0.inverse()*pose_vec[i].q*ref_poses[ld].q);
+            //     pc_color = mypcl::append_cloud(pc_color, *pc_debug);
+            // }
+
+            // pcl::toROSMsg(*pc_color, debugMsg);
+            // debugMsg.header.frame_id = "camera_init";
+            // debugMsg.header.stamp = cur_t;
+            // pub_surf_debug.publish(debugMsg);
+
+            if(!nh.ok())    return 0;
         }
-
-        for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
-            iter->second->recut();
-
-        for(size_t i = 0; i < pose_size; i++)
-            assign_qt(lm_opt.poses[i], lm_opt.ts[i], pose_vec[i].q, pose_vec[i].t);
-
-        assign_qt(lm_opt.refQs[0], lm_opt.refTs[0], ref_pose.q, ref_pose.t);
-
-        for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
-            iter->second->feed_pt(lm_opt);
-
-        lm_opt.optimize();
-
-        assign_qt(ref_pose.q, ref_pose.t, lm_opt.refQs[0], lm_opt.refTs[0]);
-
-        for(auto iter = surf_map.begin(); iter != surf_map.end(); ++iter)
-            delete iter->second;
-
-        t_end = ros::Time::now();
-        double cost_time = (t_end-t_begin).toSec();
-        cout << "time cost " << cost_time << endl;
-        avg_time += cost_time;
-        
-        if(cost_time < 1.0 / pub_hz){
-            ros::Duration(1.0 / pub_hz - cost_time).sleep();
-        }
-
-        pc_color->clear();
-        Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), pose_vec[0].q.y(), pose_vec[0].q.z());
-        Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));
-        for(size_t i = 0; i < pose_size; i++)
-        {
-            mypcl::transform_pointcloud(*base_pc[i], *pc_debug, q0.inverse()*(pose_vec[i].t-t0), q0.inverse()*pose_vec[i].q);
-            pc_color = mypcl::append_cloud(pc_color, *pc_debug);
-        
-            mypcl::transform_pointcloud(*ref_pc[i], *pc_debug,
-                q0.inverse()*(pose_vec[i].t-t0)+q0.inverse()*pose_vec[i].q*ref_pose.t,
-                q0.inverse()*pose_vec[i].q*ref_pose.q);
-            pc_color = mypcl::append_cloud(pc_color, *pc_debug);
-        }
-
-        pcl::toROSMsg(*pc_color, debugMsg);
-        debugMsg.header.frame_id = "camera_init";
-        debugMsg.header.stamp = cur_t;
-        pub_surf_debug.publish(debugMsg);
-
-        if(!nh.ok())    return 0;
+    
+        cout << "---------------------" << endl;
+        cout << "complete" << endl;
+        cout << "averaged iteration time " << avg_time / (loop+1) << endl;
     }
-  
-    cout << "---------------------" << endl;
-    cout << "complete" << endl;
-    cout << "averaged iteration time " << avg_time / (loop+1) << endl;
+
 
     {
         // change the ref.json the third line with new ref pose
@@ -292,32 +296,19 @@ int main(int argc, char** argv)
         first_lines.push_back(line);
         getline(inf, line);
         first_lines.push_back(line);
-        
-        stringstream ss1(first_lines[0]);
-        int num = 0;
-        while(ss1 >> each)  num++;
-        
-        IC(first_lines, num);
-
-        vector<string> save_lines;
-
-        for(int i=0; i<num; i++){
-            getline(inf, line);
-            if(i)   save_lines.push_back(line);
-        }
         inf.close();
         
-        IC(save_lines);
+        IC(first_lines);
 
         std::ofstream out(data_path + "ref.json");
         for(auto e : first_lines)   out << e << endl;
 
-        Eigen::Quaterniond q = ref_pose.q;
-        Eigen::Vector3d t = ref_pose.t;
-        out << t(0) << " " << t(1) << " " << t(2) << " "
-            << q.w() << " "<< q.x() << " "<< q.y() << " "<< q.z() << "\n";
-        
-        for(auto e : save_lines)    out << e << endl;
+        for(int i=0; i<ref_poses.size(); i++){
+            Eigen::Quaterniond q = ref_poses[i].q;
+            Eigen::Vector3d t = ref_poses[i].t;
+            out << t(0) << " " << t(1) << " " << t(2) << " "
+                << q.w() << " "<< q.x() << " "<< q.y() << " "<< q.z() << "\n";
+        }
         out.close();
     }
 

@@ -11,7 +11,7 @@ rospack = rospkg.RosPack()
 pkg_dir = rospack.get_path('mlcc')
 print(pkg_dir)
 
-data_dir = pkg_dir + '/scene3/'
+data_dir = pkg_dir + '/scene2/'
 print(data_dir)
 
 gt_fn = data_dir + 'ext.txt'
@@ -25,7 +25,7 @@ with open(gt_fn, 'r') as f:
         two_line.append(f.readline())
 
 # angle noise and trans noise
-noise_std = [5, 0.1]
+noise_std = [0, 0]
 
 # add noise to pose ext, each row is a pose: xyzw xyz
 rows, cols = exts.shape

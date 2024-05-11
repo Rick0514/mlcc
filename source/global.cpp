@@ -97,6 +97,9 @@ int main(int argc, char** argv)
     nh.getParam("base_lidar_topic", base_lidar_topic);
     nh.getParam("pub_hz", pub_hz);
 
+    // wait for rviz
+    this_thread::sleep_for(chrono::seconds(2));
+
     mypcl::pose p_b2l(Eigen::Quaterniond(1, 0, 0, 0), Eigen::Vector3d(0, 0, 0));
     vector<string> ref_lidar;
     vector<mypcl::pose> ref_vec;
