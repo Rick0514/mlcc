@@ -45,9 +45,6 @@ with open(gt_fn, 'r') as f:
     for i in range(2):
         two_line.append(f.readline())
 
-# angle noise and trans noise
-noise_std = [10, 0.1]
-
 # add noise to pose ext, each row is a pose: xyzw xyz
 rows, cols = exts.shape
 wfn = open(data_dir + 'ref.json', 'w')
