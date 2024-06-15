@@ -99,6 +99,10 @@ int main(int argc, char** argv)
     nh.getParam("pub_hz", pub_hz);
     nh.getParam("load_pose", load_pose);
 
+    sensor_msgs::PointCloud2 base_pc_msg, ref_pc_msg;
+    ros::Publisher pub_base = nh.advertise<sensor_msgs::PointCloud2>("/base_pc", 10, true);
+    ros::Publisher pub_ref = nh.advertise<sensor_msgs::PointCloud2>("/ref_pc", 10, true);
+
     // wait for rviz
     this_thread::sleep_for(chrono::seconds(2));
 
@@ -169,7 +173,7 @@ int main(int argc, char** argv)
                 auto p = pose->pose.pose.position;
                 Eigen::Quaterniond eq(q.w, q.x, q.y, q.z);
                 Eigen::Vector3d et(p.x, p.y, p.z);
-                pose_vec.push_back(mypcl::pose(eq, et));
+                // pose_vec.push_back(mypcl::pose(eq, et));
             }else if(m.getTopic() == base_lidar_topic){
                 sensor_msgs::PointCloud2::ConstPtr cloud = m.instantiate<sensor_msgs::PointCloud2>();
                 pcl::PointCloud<PointType>::Ptr pc(new pcl::PointCloud<PointType>);
@@ -261,6 +265,40 @@ int main(int argc, char** argv)
         t_end = ros::Time::now();
         cout << "time cost " << (t_end-t_begin).toSec() << endl;
         avg_time += (t_end-t_begin).toSec();
+
+        // visualize pc each time
+        int vis_id = 1;
+        pcl::PointCloud<PointType>::Ptr vis_pc_base(new pcl::PointCloud<PointType>);
+        pcl::PointCloud<PointType>::Ptr vis_pc_ref(new pcl::PointCloud<PointType>);
+        pcl::PointCloud<PointType>::Ptr pc_debug(new pcl::PointCloud<PointType>);
+
+        Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), pose_vec[0].q.y(), pose_vec[0].q.z());
+        Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));
+        for(size_t i = 0; i < pose_size; i++)
+        {
+            mypcl::transform_pointcloud(*base_pc[i], *pc_debug, q0.inverse()*(pose_vec[i].t-t0), q0.inverse()*pose_vec[i].q);
+            vis_pc_base = mypcl::append_cloud(vis_pc_base, *pc_debug);
+
+            int ref_pc_id = (vis_id - 1) * pose_size;
+            mypcl::transform_pointcloud(*ref_pc[ref_pc_id + i], *pc_debug,
+                q0.inverse()*(pose_vec[i].t-t0)+q0.inverse()*pose_vec[i].q*ref_vec[vis_id-1].t,
+                q0.inverse()*pose_vec[i].q*ref_vec[vis_id-1].q);
+            vis_pc_ref = mypcl::append_cloud(vis_pc_ref, *pc_debug);
+        }
+
+        pcl::toROSMsg(*vis_pc_base, base_pc_msg);
+        base_pc_msg.header.frame_id = "camera_init";
+        base_pc_msg.header.stamp = cur_t;
+        pub_base.publish(base_pc_msg);
+
+        pcl::toROSMsg(*vis_pc_ref, ref_pc_msg);
+        ref_pc_msg.header.frame_id = "camera_init";
+        ref_pc_msg.header.stamp = cur_t;
+        pub_ref.publish(ref_pc_msg);
+
+        this_thread::sleep_for(chrono::seconds(1));
+
+        if(!nh.ok())    return -1;
     }
 
     cout << "---------------------" << endl;

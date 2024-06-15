@@ -5,8 +5,8 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-        - /map_surf1
-        - /map_surf41
+        - /PointCloud21
+        - /PointCloud22
       Splitter Ratio: 0.5965417623519897
     Tree Height: 874
   - Class: rviz/Selection
@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: map_surf
+    SyncSource: PointCloud2
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -73,7 +73,7 @@ Visualization Manager:
       Color: 238; 238; 236
       Color Transformer: FlatColor
       Decay Time: 10000
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -88,18 +88,18 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 36.395999908447266
-        Min Value: -1.3961268663406372
+        Max Value: 9.67678451538086
+        Min Value: -4.106196880340576
         Value: true
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: AxisColor
+      Color: 233; 185; 110
+      Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
       Invert Rainbow: true
@@ -109,10 +109,10 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 1
+      Size (Pixels): 2
       Size (m): 0.10000000149011612
-      Style: Spheres
-      Topic: /debug_surf
+      Style: Points
+      Topic: /base_pc
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -126,10 +126,10 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: ""
-      Decay Time: 10000
-      Enabled: false
+      Color: 114; 159; 207
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -137,14 +137,14 @@ Visualization Manager:
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
-      Size (Pixels): 1
+      Size (Pixels): 2
       Size (m): 0.009999999776482582
       Style: Points
-      Topic: /debug
+      Topic: /ref_pc
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Alpha: 0.5
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -157,7 +157,7 @@ Visualization Manager:
       Color: 245; 121; 0
       Color Transformer: FlatColor
       Decay Time: 600
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -172,7 +172,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 0.5
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -185,7 +185,7 @@ Visualization Manager:
       Color: 78; 154; 6
       Color Transformer: FlatColor
       Decay Time: 600
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -200,7 +200,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 0.5
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -213,7 +213,7 @@ Visualization Manager:
       Color: 32; 74; 135
       Color Transformer: FlatColor
       Decay Time: 1000
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -228,7 +228,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 0.5
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -241,7 +241,7 @@ Visualization Manager:
       Color: 239; 41; 41
       Color Transformer: FlatColor
       Decay Time: 600
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -256,7 +256,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -369,25 +369,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 50.18349838256836
+      Distance: 28.657669067382812
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 1.7311270236968994
-        Y: -2.202360153198242
-        Z: -0.7360060214996338
+        X: -11.117222785949707
+        Y: -0.9300068616867065
+        Z: -3.9130327701568604
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.3647958040237427
+      Pitch: 1.089797019958496
       Target Frame: aft_mapped
       Value: Orbit (rviz)
-      Yaw: 3.543628692626953
+      Yaw: 5.966797828674316
     Saved:
       - Class: rviz/Orbit
         Distance: 58.149932861328125
